@@ -17,8 +17,8 @@ test = df[End_Train:]
 
 
 
-train.Count.plot(figsize=(15, 8), title='Daily Ridership', fontsize=14)
-test.Count.plot(figsize=(15, 8), title='Daily Ridership', fontsize=14)
+train.Count.plot(figsize=(16, 8), title='Daily Ridership', fontsize=14)
+test.Count.plot(figsize=(16, 8), title='Daily Ridership', fontsize=14)
 plt.show()
 
 sm.tsa.seasonal_decompose(train.Count).plot()
