@@ -1,7 +1,7 @@
 ```mermaid
 graph TD;
-    A-->B;
-    A-->C;
-    B-->D;
-    C-->D;
-```
+    Node Exporter-->Prometheus;
+    Prometheus-->Storge;
+    Storge-->Web-server;
+    Web-server-->Grafana;
+``
