@@ -1,6 +1,6 @@
 ```mermaid
 graph TD;
-    Node Exporter-->Prometheus;
+    Node_Exporter-->Prometheus;
     Prometheus-->Storge;
     Storge-->Web-server;
     Web-server-->Grafana;
