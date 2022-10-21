@@ -1,11 +1,10 @@
-# time-series 
-Предназначен для прогнозирования временных рядов на основе полученных данных за определенный период
+# Time-series 
+Designed for forecasting time series based on period data
 
 
+## Functionality
 
-## Функциональность
-
-### Описание
+### Description
 
 
 
@@ -18,4 +17,4 @@ graph TD;
     Web-server-->Grafana;
 ```
 
-##### Библиотеки
+##### Libraries
