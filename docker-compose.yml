@@ -1,0 +1,275 @@
+version: '3.8'
+
+services:
+  # ========================================
+  # ClickHouse - OLAP Database
+  # ========================================
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.12
+    container_name: stock-clickhouse
+    ports:
+      - "8123:8123"  # HTTP interface
+      - "9000:9000"  # Native protocol
+    environment:
+      CLICKHOUSE_DB: stock_market
+      CLICKHOUSE_USER: stock_app
+      CLICKHOUSE_PASSWORD: stock_password
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - ./schema/clickhouse:/docker-entrypoint-initdb.d:ro
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse_config.xml:/etc/clickhouse-server/config.d/custom.xml:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - stock-network
+
+  # ========================================
+  # Redis - Cache
+  # ========================================
+  redis:
+    image: redis:7.2-alpine
+    container_name: stock-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass redis_password
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - stock-network
+
+  # ========================================
+  # Kafka - Message Queue
+  # ========================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: stock-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+    networks:
+      - stock-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: stock-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168  # 7 days
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - stock-network
+
+  # ========================================
+  # Kafka UI - Management interface
+  # ========================================
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: stock-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - stock-network
+
+  # ========================================
+  # Prometheus - Metrics
+  # ========================================
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: stock-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - stock-network
+
+  # ========================================
+  # Grafana - Dashboards
+  # ========================================
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: stock-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+    volumes:
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - clickhouse
+    networks:
+      - stock-network
+
+  # ========================================
+  # Jaeger - Distributed Tracing
+  # ========================================
+  jaeger:
+    image: jaegertracing/all-in-one:1.52
+    container_name: stock-jaeger
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"
+      - "14250:14250"
+      - "9411:9411"
+    environment:
+      COLLECTOR_ZIPKIN_HOST_PORT: ":9411"
+    networks:
+      - stock-network
+
+  # ========================================
+  # Services (to be built)
+  # ========================================
+
+  # ticker-fetcher:
+  #   build:
+  #     context: .
+  #     dockerfile: cmd/ticker-fetcher/Dockerfile
+  #   container_name: stock-ticker-fetcher
+  #   depends_on:
+  #     - redis
+  #     - clickhouse
+  #   environment:
+  #     REDIS_ADDR: redis:6379
+  #     REDIS_PASSWORD: redis_password
+  #     CLICKHOUSE_ADDR: clickhouse:9000
+  #     CLICKHOUSE_USER: stock_app
+  #     CLICKHOUSE_PASSWORD: stock_password
+  #   networks:
+  #     - stock-network
+
+  # data-collector:
+  #   build:
+  #     context: .
+  #     dockerfile: cmd/data-collector/Dockerfile
+  #   container_name: stock-data-collector
+  #   depends_on:
+  #     - kafka
+  #     - redis
+  #     - clickhouse
+  #   environment:
+  #     KAFKA_BROKERS: kafka:9092
+  #     REDIS_ADDR: redis:6379
+  #     REDIS_PASSWORD: redis_password
+  #     CLICKHOUSE_ADDR: clickhouse:9000
+  #     CLICKHOUSE_USER: stock_app
+  #     CLICKHOUSE_PASSWORD: stock_password
+  #   networks:
+  #     - stock-network
+
+  # indicator-calculator:
+  #   build:
+  #     context: .
+  #     dockerfile: cmd/indicator-calculator/Dockerfile
+  #   container_name: stock-indicator-calculator
+  #   depends_on:
+  #     - kafka
+  #     - clickhouse
+  #   environment:
+  #     KAFKA_BROKERS: kafka:9092
+  #     CLICKHOUSE_ADDR: clickhouse:9000
+  #     CLICKHOUSE_USER: stock_app
+  #     CLICKHOUSE_PASSWORD: stock_password
+  #   networks:
+  #     - stock-network
+
+  # scheduler:
+  #   build:
+  #     context: .
+  #     dockerfile: cmd/scheduler/Dockerfile
+  #   container_name: stock-scheduler
+  #   depends_on:
+  #     - ticker-fetcher
+  #     - data-collector
+  #     - indicator-calculator
+  #   environment:
+  #     TICKER_FETCHER_URL: http://ticker-fetcher:8081
+  #     DATA_COLLECTOR_URL: http://data-collector:8082
+  #   networks:
+  #     - stock-network
+
+  # api-gateway:
+  #   build:
+  #     context: .
+  #     dockerfile: cmd/api-gateway/Dockerfile
+  #   container_name: stock-api-gateway
+  #   ports:
+  #     - "8000:8000"  # REST API
+  #     - "50051:50051"  # gRPC
+  #   depends_on:
+  #     - clickhouse
+  #     - redis
+  #   environment:
+  #     REDIS_ADDR: redis:6379
+  #     REDIS_PASSWORD: redis_password
+  #     CLICKHOUSE_ADDR: clickhouse:9000
+  #     CLICKHOUSE_USER: stock_app
+  #     CLICKHOUSE_PASSWORD: stock_password
+  #   networks:
+  #     - stock-network
+
+networks:
+  stock-network:
+    driver: bridge
+
+volumes:
+  clickhouse_data:
+  redis_data:
+  zookeeper_data:
+  zookeeper_logs:
+  kafka_data:
+  prometheus_data:
+  grafana_data:
