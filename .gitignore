@@ -1,0 +1,117 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+build/
+dist/
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+coverage.txt
+
+# Go workspace file
+go.work
+
+# Dependency directories
+vendor/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Config overrides
+config.local.yaml
+config.*.yaml
+!config.yaml
+
+# Data directories
+data/
+*.xlsx
+*.csv
+*.db
+
+# Docker
+.dockerignore
+
+# Build artifacts
+*.tar.gz
+*.zip
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# Mac
+.DS_Store
+
+# Redis
+dump.rdb
+
+# ClickHouse
+clickhouse_data/
+
+# Kafka
+kafka_data/
+zookeeper_data/
+zookeeper_logs/
+
+# Prometheus
+prometheus_data/
+
+# Grafana
+grafana_data/
