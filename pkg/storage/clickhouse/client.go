@@ -315,6 +315,49 @@ func (c *Client) GetLatestQuoteDate(ctx context.Context, ticker string, exchange
 	return tradeDate, nil
 }
 
+// GetStockQuotes retrieves stock quotes for a ticker within a date range
+func (c *Client) GetStockQuotes(ctx context.Context, ticker string, exchange models.Exchange, startDate, endDate time.Time) ([]models.StockQuote, error) {
+	rows, err := c.conn.Query(ctx, `
+		SELECT ticker, exchange, trade_date, open, high, low, close, volume, value, num_trades, created_at
+		FROM stock_quotes
+		WHERE ticker = ? AND exchange = ? AND trade_date >= ? AND trade_date <= ?
+		ORDER BY trade_date ASC
+	`, ticker, exchange, startDate, endDate)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to query stock quotes: %w", err)
+	}
+	defer rows.Close()
+
+	quotes := make([]models.StockQuote, 0)
+	for rows.Next() {
+		var quote models.StockQuote
+		err := rows.Scan(
+			&quote.Ticker,
+			&quote.Exchange,
+			&quote.TradeDate,
+			&quote.Open,
+			&quote.High,
+			&quote.Low,
+			&quote.Close,
+			&quote.Volume,
+			&quote.Value,
+			&quote.NumTrades,
+			&quote.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		quotes = append(quotes, quote)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return quotes, nil
+}
+
 // Execute executes a query
 func (c *Client) Execute(ctx context.Context, query string, args ...interface{}) error {
 	return c.conn.Exec(ctx, query, args...)

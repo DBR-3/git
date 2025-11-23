@@ -1,0 +1,66 @@
+# Indicator Calculator Service Configuration
+
+server:
+  port: 8083
+  grpcport: 50053
+  readtimeout: 60s
+  writetimeout: 60s
+
+clickhouse:
+  addresses:
+    - localhost:9000
+  database: stock_market
+  username: stock_app
+  password: stock_password
+  maxopenconns: 50
+  maxidleconns: 10
+  connmaxlifetime: 1h
+  batchsize: 10000
+  flushinterval: 10s
+  compressionlevel: 1
+
+redis:
+  address: localhost:6379
+  password: redis_password
+  database: 0
+  poolsize: 100
+  minidleconns: 10
+  maxretries: 3
+  dialtimeout: 5s
+  readtimeout: 3s
+  writetimeout: 3s
+
+kafka:
+  brokers:
+    - localhost:9092
+  groupid: stock-market-indicator-calculator
+  topicdatacollect: stock.data.collected
+  topicindicators: stock.indicators.calculated
+  topicsignals: stock.signals.generated
+  topicerrors: stock.errors
+  batchsize: 100
+  batchtimeout: 1s
+  compressioncodec: snappy
+  maxattempts: 3
+  requiredacks: 1
+  enableautocommit: true
+  commitinterval: 5s
+  sessiontimeout: 10s
+  rebalancetimeout: 60s
+  startoffset: latest
+
+logger:
+  level: info
+  format: json
+  output: stdout
+  maxsize: 100
+  maxbackups: 3
+  maxage: 7
+  compress: true
+
+tracing:
+  enabled: false
+  servicename: indicator-calculator
+  jaegerurl: http://localhost:14268/api/traces
+  samplertype: probabilistic
+  samplerrate: 0.1

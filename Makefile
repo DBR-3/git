@@ -208,6 +208,15 @@ run-scheduler: ## Run scheduler service locally
 run-api-gateway: ## Run api-gateway service locally
 	$(GOCMD) run $(CMD_DIR)/api-gateway/main.go
 
+test-ticker-fetcher: ## Test ticker-fetcher service
+	@./scripts/test-ticker-fetcher.sh
+
+test-data-collector: ## Test data-collector service
+	@./scripts/test-data-collector.sh
+
+test-indicator-calculator: ## Test indicator-calculator service
+	@./scripts/test-indicator-calculator.sh
+
 k8s-deploy: ## Deploy to Kubernetes
 	@echo "Deploying to Kubernetes..."
 	kubectl apply -f k8s/namespace.yaml
